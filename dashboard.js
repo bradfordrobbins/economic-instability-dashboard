@@ -7,6 +7,22 @@ const SHEET_ID = "1qpGEb9FEuhttf0PCVuziBQn9Qvpr33OTsitIaqEdbI0";
 const URL_INDICATORS = `https://opensheet.elk.sh/${SHEET_ID}/Indicators`;
 const URL_THRESHOLDS = `https://opensheet.elk.sh/${SHEET_ID}/Thresholds`;
 
+// Orientation: does risk increase when the value goes UP or DOWN?
+// This normalizes everything so that UP = WORSE on the chart.
+const ORIENTATION = {
+  "Trust": "low-worse",
+  "Labor Force Participation": "low-worse",
+  "Consumer Sentiment": "low-worse",
+  "Governance Stability": "low-worse",
+
+  "Polarization Index": "high-worse",
+  "AI-Exposed Unemployment": "high-worse",
+  "Wage Inequality": "high-worse",
+  "AI Labor Churn Index": "high-worse",
+  "Protest Events": "high-worse",
+  "Narrative Temperature": "high-worse"
+};
+
 
 // =========================
 // HELPERS
@@ -30,34 +46,54 @@ function getCanvasId(indicator) {
 
 
 // =========================
-// BUILD ANNOTATIONS FROM SHEET
+// BUILD ANNOTATIONS (NORMALIZED)
 // =========================
 
-function buildAnnotations(threshold) {
-  const redMax = Number(threshold.RedMax);
-  const yellowMax = Number(threshold.YellowMax);
-  const greenMax = Number(threshold.GreenMax);
+function buildAnnotations(indicator, t) {
+  if (!t) return {};
+
+  const orient = ORIENTATION[indicator] || "low-worse";
+
+  // Raw thresholds from sheet
+  const g = Number(t.GreenMax);
+  const y = Number(t.YellowMax);
+  const r = Number(t.RedMax);
+
+  let low, mid, high;
+
+  if (orient === "low-worse") {
+    // Sheet already expresses: low = red, mid = yellow, high = green
+    low = r;
+    mid = y;
+    high = g;
+  } else {
+    // Flip thresholds so that high values become red
+    // 0–g = green, g–y = yellow, y–r = red
+    low = g;
+    mid = y;
+    high = r;
+  }
 
   return {
-    red: {
+    green: {
       type: "box",
       yMin: 0,
-      yMax: redMax,
-      backgroundColor: "rgba(255, 80, 80, 0.20)",
+      yMax: low,
+      backgroundColor: "rgba(120,255,120,0.20)",
       borderWidth: 0
     },
     yellow: {
       type: "box",
-      yMin: redMax,
-      yMax: yellowMax,
-      backgroundColor: "rgba(255, 230, 120, 0.20)",
+      yMin: low,
+      yMax: mid,
+      backgroundColor: "rgba(255,230,120,0.20)",
       borderWidth: 0
     },
-    green: {
+    red: {
       type: "box",
-      yMin: yellowMax,
-      yMax: greenMax,
-      backgroundColor: "rgba(120, 255, 120, 0.20)",
+      yMin: mid,
+      yMax: high,
+      backgroundColor: "rgba(255,80,80,0.20)",
       borderWidth: 0
     }
   };
@@ -83,8 +119,6 @@ async function loadThresholds() {
   const res = await fetch(URL_THRESHOLDS);
   const raw = await res.json();
 
-  // Convert sheet rows into a lookup table:
-  // thresholds["Trust"] = { GreenMax: 100, YellowMax: 54, RedMax: 39 }
   const map = {};
   raw.forEach(r => {
     map[r.Indicator] = {
@@ -112,7 +146,7 @@ function renderCharts(grouped, thresholds) {
     if (!canvas) return;
 
     const threshold = thresholds[indicator];
-    const annotations = threshold ? buildAnnotations(threshold) : {};
+    const annotations = buildAnnotations(indicator, threshold);
 
     new Chart(canvas.getContext("2d"), {
       type: "line",
