@@ -72,13 +72,18 @@ function getCanvasId(indicator) {
 // =========================
 
 function buildAnnotations(indicator, t) {
-  if (!t) return {};
+  if (!t) {
+    console.warn("No thresholds for", indicator);
+    return {};
+  }
 
   const orient = ORIENTATION[indicator] || "low-worse";
 
   const g = Number(t.GreenMax);
   const y = Number(t.YellowMax);
   const r = Number(t.RedMax);
+
+  console.log("BUILD ANNOTATIONS FOR:", indicator, "orient:", orient, "raw t:", t, "parsed:", { g, y, r });
 
   let low, mid, high;
 
@@ -92,7 +97,7 @@ function buildAnnotations(indicator, t) {
     high = r;
   }
 
-  return {
+  const annotations = {
     green: {
       type: "box",
       yMin: 0,
@@ -112,6 +117,9 @@ function buildAnnotations(indicator, t) {
       backgroundColor: "rgba(255,80,80,0.20)"
     }
   };
+
+  console.log("  annotations:", annotations);
+  return annotations;
 }
 
 
@@ -123,30 +131,48 @@ async function loadIndicators() {
   const res = await fetch(URL_INDICATORS);
   const raw = await res.json();
 
-  return raw.map(r => ({
+  console.log("INDICATORS RAW:", raw);
+
+  const parsed = raw.map(r => ({
     Date: r.Date,
-    Indicator: r.Indicator.trim(),
+    Indicator: String(r.Indicator || "").trim(),
     Value: Number(r.Value)
   }));
+
+  console.log("INDICATORS PARSED:", parsed);
+  return parsed;
 }
 
 async function loadThresholds() {
   const res = await fetch(URL_THRESHOLDS);
   const raw = await res.json();
 
+  console.log("THRESHOLDS RAW:", raw);
+
   const map = {};
 
   raw.forEach(r => {
-    const cleanName = INDICATOR_NAME_MAP[r.Indicator.trim()];
-    if (!cleanName) return;
+    const rawName = String(r.Indicator || "").trim();
+    const cleanName = INDICATOR_NAME_MAP[rawName];
+
+    if (!cleanName) {
+      console.warn("No INDICATOR_NAME_MAP entry for thresholds row:", rawName, r);
+      return;
+    }
+
+    const g = Number(String(r["# Green Max"]).trim());
+    const y = Number(String(r["# Yellow Max"]).trim());
+    const rd = Number(String(r["# Red Max"]).trim());
 
     map[cleanName] = {
-      GreenMax: Number(String(r["# Green Max"]).trim()),
-      YellowMax: Number(String(r["# Yellow Max"]).trim()),
-      RedMax: Number(String(r["# Red Max"]).trim())
+      GreenMax: g,
+      YellowMax: y,
+      RedMax: rd
     };
   });
 
+  console.log("THRESHOLDS MAP:", map);
+  window.LAST_THRESHOLDS = map; // for interactive debugging
   return map;
 }
 
@@ -162,10 +188,19 @@ function renderCharts(grouped, thresholds) {
     const values = rows.map(r => r.Value);
 
     const canvas = document.getElementById(getCanvasId(indicator));
-    if (!canvas) return;
+    if (!canvas) {
+      console.warn("No canvas for indicator:", indicator, "expected id:", getCanvasId(indicator));
+      return;
+    }
 
     const threshold = thresholds[indicator];
     const annotations = buildAnnotations(indicator, threshold);
+
+    console.log("RENDERING:", indicator);
+    console.log("  values:", values);
+    console.log("  thresholds:", threshold);
+    console.log("  orientation:", ORIENTATION[indicator]);
+    console.log("  annotations:", annotations);
 
     new Chart(canvas.getContext("2d"), {
       type: "line",
@@ -209,6 +244,8 @@ async function init() {
   ]);
 
   const grouped = groupByIndicator(indicatorData);
+  console.log("GROUPED INDICATORS:", grouped);
+
   renderCharts(grouped, thresholdData);
 }
 
