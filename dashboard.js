@@ -207,13 +207,13 @@ const CANONICAL_NAMES = {
   "trust": "Trust",
   "polarization index": "Polarization Index",
   "ai exposed unemployment": "AI-Exposed Unemployment",
-  "labor force participation": "Labor Force Participation",
-  "wage inequality": "Wage Inequality",
+  "labor force participation prime age": "Labor Force Participation",
+  "wage inequality 90 10 ratio": "Wage Inequality",
   "ai labor churn index": "AI Labor Churn Index",
   "consumer sentiment": "Consumer Sentiment",
-  "protest events": "Protest Events",
-  "governance stability": "Governance Stability",
-  "narrative temperature": "Narrative Temperature"
+  "protest events monthly": "Protest Events",
+  "governance stability score": "Governance Stability",
+  "narrative temperature index": "Narrative Temperature"
 };
 
 
