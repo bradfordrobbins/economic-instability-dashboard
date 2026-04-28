@@ -7,8 +7,30 @@ const SHEET_ID = "1qpGEb9FEuhttf0PCVuziBQn9Qvpr33OTsitIaqEdbI0";
 const URL_INDICATORS = `https://opensheet.elk.sh/${SHEET_ID}/Indicators`;
 const URL_THRESHOLDS = `https://opensheet.elk.sh/${SHEET_ID}/Thresholds`;
 
-// Orientation: does risk increase when the value goes UP or DOWN?
-// This normalizes everything so that UP = WORSE on the chart.
+
+// =========================
+// NORMALIZE INDICATOR NAMES
+// =========================
+
+// Map long names in Thresholds tab → short names in Indicators tab
+const INDICATOR_NAME_MAP = {
+  "Trust": "Trust",
+  "Polarization Index": "Polarization Index",
+  "AI-Exposed Unemployment (%)": "AI-Exposed Unemployment",
+  "Labor Force Participation (Prime Age)": "Labor Force Participation",
+  "Wage Inequality (90/10 Ratio)": "Wage Inequality",
+  "AI Labor Churn Index": "AI Labor Churn Index",
+  "Consumer Sentiment": "Consumer Sentiment",
+  "Protest Events (Monthly)": "Protest Events",
+  "Governance Stability Score": "Governance Stability",
+  "Narrative Temperature Index": "Narrative Temperature"
+};
+
+
+// =========================
+// ORIENTATION (UP = WORSE)
+// =========================
+
 const ORIENTATION = {
   "Trust": "low-worse",
   "Labor Force Participation": "low-worse",
@@ -46,19 +68,14 @@ function getCanvasId(indicator) {
 
 
 // =========================
-// BUILD ANNOTATIONS (NORMALIZED)
+// BUILD ANNOTATIONS
 // =========================
 
 function buildAnnotations(indicator, t) {
-  if (!t) {
-    console.warn("No thresholds for", indicator);
-    return {};
-  }
-  const orient = ORIENTATION[indicator] || "low-worse";
-  // DEBUG print
-  console.log("BUILD ANNOTATIONS FOR:", indicator, "orient:", orient, "raw t:", t);
+  if (!t) return {};
 
-  // Raw thresholds from sheet
+  const orient = ORIENTATION[indicator] || "low-worse";
+
   const g = Number(t.GreenMax);
   const y = Number(t.YellowMax);
   const r = Number(t.RedMax);
@@ -66,13 +83,10 @@ function buildAnnotations(indicator, t) {
   let low, mid, high;
 
   if (orient === "low-worse") {
-    // Sheet already expresses: low = red, mid = yellow, high = green
     low = r;
     mid = y;
     high = g;
   } else {
-    // Flip thresholds so that high values become red
-    // 0–g = green, g–y = yellow, y–r = red
     low = g;
     mid = y;
     high = r;
@@ -83,63 +97,55 @@ function buildAnnotations(indicator, t) {
       type: "box",
       yMin: 0,
       yMax: low,
-      backgroundColor: "rgba(120,255,120,0.20)",
-      borderWidth: 0
+      backgroundColor: "rgba(120,255,120,0.20)"
     },
     yellow: {
       type: "box",
       yMin: low,
       yMax: mid,
-      backgroundColor: "rgba(255,230,120,0.20)",
-      borderWidth: 0
+      backgroundColor: "rgba(255,230,120,0.20)"
     },
     red: {
       type: "box",
       yMin: mid,
       yMax: high,
-      backgroundColor: "rgba(255,80,80,0.20)",
-      borderWidth: 0
+      backgroundColor: "rgba(255,80,80,0.20)"
     }
   };
 }
 
 
 // =========================
-// LOAD DATA FROM GOOGLE SHEETS
+// LOAD DATA
 // =========================
 
 async function loadIndicators() {
   const res = await fetch(URL_INDICATORS);
   const raw = await res.json();
 
-  const parsed = raw.map(r => ({
+  return raw.map(r => ({
     Date: r.Date,
-    Indicator: r.Indicator,
+    Indicator: r.Indicator.trim(),
     Value: Number(r.Value)
   }));
-  // DEBUG print to console
-  console.log("INDICATORS RAW:", raw);
-  console.log("INDICATORS PARSED:", parsed);
-  return parsed;
 }
 
 async function loadThresholds() {
   const res = await fetch(URL_THRESHOLDS);
   const raw = await res.json();
 
-  console.log("THRESHOLDS RAW:", raw);
-
   const map = {};
+
   raw.forEach(r => {
-    map[r.Indicator] = {
-      GreenMax: Number(r["# Green Max"]),
-      YellowMax: Number(r["# Yellow Max"]),
-      RedMax: Number(r["# Red Max"])
+    const cleanName = INDICATOR_NAME_MAP[r.Indicator.trim()];
+    if (!cleanName) return;
+
+    map[cleanName] = {
+      GreenMax: Number(String(r["# Green Max"]).trim()),
+      YellowMax: Number(String(r["# Yellow Max"]).trim()),
+      RedMax: Number(String(r["# Red Max"]).trim())
     };
   });
-  
-  // DEBUG print to console
-  console.log("THRESHOLDS MAP:", map);
 
   return map;
 }
@@ -160,14 +166,7 @@ function renderCharts(grouped, thresholds) {
 
     const threshold = thresholds[indicator];
     const annotations = buildAnnotations(indicator, threshold);
-    
-    // DEBUG print
-    console.log("RENDERING:", indicator);
-    console.log("  values:", values);
-    console.log("  thresholds:", threshold);
-    console.log("  orientation:", ORIENTATION[indicator]);
-    console.log("  annotations:", annotations);
-    
+
     new Chart(canvas.getContext("2d"), {
       type: "line",
       data: {
@@ -191,15 +190,6 @@ function renderCharts(grouped, thresholds) {
             display: true,
             text: indicator,
             font: { size: 14 }
-          }
-        },
-        scales: {
-          y: {
-            grid: { color: "rgba(255,255,255,0.1)" },
-            ticks: { color: "#eee" }
-          },
-          x: {
-            ticks: { color: "#eee" }
           }
         }
       }
