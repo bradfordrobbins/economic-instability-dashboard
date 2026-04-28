@@ -148,26 +148,38 @@ async function loadThresholds() {
   const raw = await res.json();
 
   console.log("THRESHOLDS RAW:", raw);
-  if (raw.length > 0) {
-    console.log("THRESHOLDS KEYS SAMPLE:", Object.keys(raw[0]));
+  if (raw.length === 0) {
+    console.warn("No threshold rows returned");
+    return {};
   }
-  
+
+  const sample = raw[0];
+  const keys = Object.keys(sample);
+  console.log("THRESHOLDS KEYS SAMPLE:", keys);
+
+  const greenKey  = keys.find(k => k.toLowerCase().includes("green"));
+  const yellowKey = keys.find(k => k.toLowerCase().includes("yellow"));
+  const redKey    = keys.find(k => k.toLowerCase().includes("red"));
+
+  console.log("DETECTED THRESHOLD COLUMNS:", { greenKey, yellowKey, redKey });
+
   const map = {};
 
   raw.forEach(r => {
-    const rawName = String(r.Indicator || "").trim();
-    const cleanName = INDICATOR_NAME_MAP[rawName];
+    const rawName = String(r.Indicator || "");
+    const norm = normalizeName(rawName);
+    const canonical = CANONICAL_NAMES[norm];
 
-    if (!cleanName) {
-      console.warn("No INDICATOR_NAME_MAP entry for thresholds row:", rawName, r);
+    if (!canonical) {
+      console.warn("No canonical name for thresholds row:", rawName, "normalized as:", norm, r);
       return;
     }
 
-    const g = Number(String(r["# Green Max"]).trim());
-    const y = Number(String(r["# Yellow Max"]).trim());
-    const rd = Number(String(r["# Red Max"]).trim());
+    const g  = Number(String(r[greenKey]).trim());
+    const y  = Number(String(r[yellowKey]).trim());
+    const rd = Number(String(r[redKey]).trim());
 
-    map[cleanName] = {
+    map[canonical] = {
       GreenMax: g,
       YellowMax: y,
       RedMax: rd
@@ -175,9 +187,34 @@ async function loadThresholds() {
   });
 
   console.log("THRESHOLDS MAP:", map);
-  window.LAST_THRESHOLDS = map; // for interactive debugging
+  window.LAST_THRESHOLDS = map;
   return map;
 }
+
+
+// Turn "AI‑Exposed Unemployment (%)" and "AI-Exposed Unemployment" into the same key
+function normalizeName(str) {
+  return String(str || "")
+    .toLowerCase()
+    .replace(/[\u2010-\u2015]/g, "-")   // normalize all hyphen-like chars to "-"
+    .replace(/[^a-z0-9]+/g, " ")       // remove punctuation, keep letters/numbers as words
+    .trim()
+    .replace(/\s+/g, " ");             // collapse spaces
+}
+
+// Canonical indicator names (what you use in the Indicators tab)
+const CANONICAL_NAMES = {
+  "trust": "Trust",
+  "polarization index": "Polarization Index",
+  "ai exposed unemployment": "AI-Exposed Unemployment",
+  "labor force participation": "Labor Force Participation",
+  "wage inequality": "Wage Inequality",
+  "ai labor churn index": "AI Labor Churn Index",
+  "consumer sentiment": "Consumer Sentiment",
+  "protest events": "Protest Events",
+  "governance stability": "Governance Stability",
+  "narrative temperature": "Narrative Temperature"
+};
 
 
 // =========================
