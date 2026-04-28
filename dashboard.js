@@ -1,24 +1,16 @@
-// ==== CONFIG ====
+// =========================
+// CONFIG
+// =========================
 
 const SHEET_ID = "1qpGEb9FEuhttf0PCVuziBQn9Qvpr33OTsitIaqEdbI0";
-const SHEET_TAB = "Indicators";
-const SHEET_URL = `https://opensheet.elk.sh/${SHEET_ID}/${SHEET_TAB}`;
 
-// Corrected thresholds (always red < yellow < green)
-const THRESHOLDS = {
-  "Trust": { redMax: 40, yellowMax: 55, greenMax: 100 },
-  "Polarization Index": { redMax: 1.0, yellowMax: 0.60, greenMax: 0.40 },
-  "AI-Exposed Unemployment": { redMax: 100, yellowMax: 5.0, greenMax: 3.5 },
-  "Labor Force Participation": { redMax: 80, yellowMax: 83, greenMax: 100 },
-  "Wage Inequality": { redMax: 100, yellowMax: 5.5, greenMax: 4.5 },
-  "AI Labor Churn Index": { redMax: 10, yellowMax: 1.5, greenMax: 1.2 },
-  "Consumer Sentiment": { redMax: 60, yellowMax: 80, greenMax: 100 },
-  "Protest Events": { redMax: 100, yellowMax: 15, greenMax: 5 },
-  "Governance Stability": { redMax: 0.55, yellowMax: 0.70, greenMax: 1.0 },
-  "Narrative Temperature": { redMax: 100, yellowMax: 60, greenMax: 40 }
-};
+const URL_INDICATORS = `https://opensheet.elk.sh/${SHEET_ID}/Indicators`;
+const URL_THRESHOLDS = `https://opensheet.elk.sh/${SHEET_ID}/Thresholds`;
 
-// ==== HELPERS ====
+
+// =========================
+// HELPERS
+// =========================
 
 function groupByIndicator(rows) {
   const map = {};
@@ -36,39 +28,48 @@ function getCanvasId(indicator) {
   return "chart-" + indicator.replace(/\s+/g, "-");
 }
 
-function buildAnnotations(indicator) {
-  const t = THRESHOLDS[indicator];
-  if (!t) return {};
+
+// =========================
+// BUILD ANNOTATIONS FROM SHEET
+// =========================
+
+function buildAnnotations(threshold) {
+  const redMax = Number(threshold.RedMax);
+  const yellowMax = Number(threshold.YellowMax);
+  const greenMax = Number(threshold.GreenMax);
 
   return {
     red: {
       type: "box",
       yMin: 0,
-      yMax: t.redMax,
+      yMax: redMax,
       backgroundColor: "rgba(255, 80, 80, 0.20)",
       borderWidth: 0
     },
     yellow: {
       type: "box",
-      yMin: t.redMax,
-      yMax: t.yellowMax,
+      yMin: redMax,
+      yMax: yellowMax,
       backgroundColor: "rgba(255, 230, 120, 0.20)",
       borderWidth: 0
     },
     green: {
       type: "box",
-      yMin: t.yellowMax,
-      yMax: t.greenMax,
+      yMin: yellowMax,
+      yMax: greenMax,
       backgroundColor: "rgba(120, 255, 120, 0.20)",
       borderWidth: 0
     }
   };
 }
 
-// ==== MAIN ====
 
-async function loadData() {
-  const res = await fetch(SHEET_URL);
+// =========================
+// LOAD DATA FROM GOOGLE SHEETS
+// =========================
+
+async function loadIndicators() {
+  const res = await fetch(URL_INDICATORS);
   const raw = await res.json();
 
   return raw.map(r => ({
@@ -78,7 +79,30 @@ async function loadData() {
   }));
 }
 
-function renderCharts(grouped) {
+async function loadThresholds() {
+  const res = await fetch(URL_THRESHOLDS);
+  const raw = await res.json();
+
+  // Convert sheet rows into a lookup table:
+  // thresholds["Trust"] = { GreenMax: 100, YellowMax: 54, RedMax: 39 }
+  const map = {};
+  raw.forEach(r => {
+    map[r.Indicator] = {
+      GreenMax: Number(r["# Green Max"]),
+      YellowMax: Number(r["# Yellow Max"]),
+      RedMax: Number(r["# Red Max"])
+    };
+  });
+
+  return map;
+}
+
+
+// =========================
+// RENDER CHARTS
+// =========================
+
+function renderCharts(grouped, thresholds) {
   Object.keys(grouped).forEach(indicator => {
     const rows = grouped[indicator];
     const labels = rows.map(r => r.Date);
@@ -86,6 +110,9 @@ function renderCharts(grouped) {
 
     const canvas = document.getElementById(getCanvasId(indicator));
     if (!canvas) return;
+
+    const threshold = thresholds[indicator];
+    const annotations = threshold ? buildAnnotations(threshold) : {};
 
     new Chart(canvas.getContext("2d"), {
       type: "line",
@@ -104,14 +131,21 @@ function renderCharts(grouped) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          annotation: {
-            annotations: buildAnnotations(indicator)
-          },
+          annotation: { annotations },
           legend: { display: false },
           title: {
             display: true,
             text: indicator,
             font: { size: 14 }
+          }
+        },
+        scales: {
+          y: {
+            grid: { color: "rgba(255,255,255,0.1)" },
+            ticks: { color: "#eee" }
+          },
+          x: {
+            ticks: { color: "#eee" }
           }
         }
       }
@@ -119,10 +153,19 @@ function renderCharts(grouped) {
   });
 }
 
+
+// =========================
+// INIT
+// =========================
+
 async function init() {
-  const data = await loadData();
-  const grouped = groupByIndicator(data);
-  renderCharts(grouped);
+  const [indicatorData, thresholdData] = await Promise.all([
+    loadIndicators(),
+    loadThresholds()
+  ]);
+
+  const grouped = groupByIndicator(indicatorData);
+  renderCharts(grouped, thresholdData);
 }
 
 document.addEventListener("DOMContentLoaded", init);
