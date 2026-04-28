@@ -70,7 +70,6 @@ function getCanvasId(indicator) {
 // =========================
 // BUILD ANNOTATIONS
 // =========================
-
 function buildAnnotations(indicator, t) {
   if (!t) {
     console.warn("No thresholds for", indicator);
@@ -79,46 +78,59 @@ function buildAnnotations(indicator, t) {
 
   const orient = ORIENTATION[indicator] || "low-worse";
 
-  let low = Number(t.RedMax);
-  let mid = Number(t.YellowMax);
-  let high = Number(t.GreenMax);
+  const g = Number(t.GreenMax);
+  const y = Number(t.YellowMax);
+  const r = Number(t.RedMax);
 
-  // Normalize so UP = WORSE
-  if (orient === "low-worse") {
-    // Sheet: low=red, mid=yellow, high=green
-    // Chart: low=green, mid=yellow, high=red
-    const newLow = high;   // green bottom
-    const newMid = mid;    // yellow middle
-    const newHigh = low;   // red top
-    low = newLow;
-    mid = newMid;
-    high = newHigh;
+  let greenMin, greenMax, yellowMin, yellowMax, redMin, redMax;
+
+  if (orient === "high-worse") {
+    // Higher is worse: 0–g green, g–y yellow, y–r red
+    greenMin = 0;
+    greenMax = g;
+    yellowMin = g;
+    yellowMax = y;
+    redMin = y;
+    redMax = r;
+  } else {
+    // Lower is worse: red at bottom, green at top
+    // red: 0–r, yellow: r–y, green: y–g
+    redMin = 0;
+    redMax = r;
+    yellowMin = r;
+    yellowMax = y;
+    greenMin = y;
+    greenMax = g;
   }
 
-  console.log("NORMALIZED THRESHOLDS FOR:", indicator, { low, mid, high });
+  console.log("BANDS FOR:", indicator, {
+    orient,
+    green: [greenMin, greenMax],
+    yellow: [yellowMin, yellowMax],
+    red: [redMin, redMax]
+  });
 
   return {
     green: {
       type: "box",
-      yMin: 0,
-      yMax: low,
+      yMin: greenMin,
+      yMax: greenMax,
       backgroundColor: "rgba(120,255,120,0.20)"
     },
     yellow: {
       type: "box",
-      yMin: low,
-      yMax: mid,
+      yMin: yellowMin,
+      yMax: yellowMax,
       backgroundColor: "rgba(255,230,120,0.20)"
     },
     red: {
       type: "box",
-      yMin: mid,
-      yMax: high,
+      yMin: redMin,
+      yMax: redMax,
       backgroundColor: "rgba(255,80,80,0.20)"
     }
   };
 }
-
 
 
 // =========================
