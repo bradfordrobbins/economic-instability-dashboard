@@ -216,7 +216,6 @@ const CANONICAL_NAMES = {
   "narrative temperature index": "Narrative Temperature"
 };
 
-
 // =========================
 // RENDER CHARTS
 // =========================
