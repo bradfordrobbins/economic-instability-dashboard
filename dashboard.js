@@ -6,7 +6,7 @@ const SHEET_URL = `https://opensheet.elk.sh/${SHEET_ID}/${SHEET_TAB}`;
 
 // Corrected thresholds (always red < yellow < green)
 const THRESHOLDS = {
-  "Trust": { redMax: 39, yellowMax: 54, greenMax: 100 },
+  "Trust": { redMax: 40, yellowMax: 55, greenMax: 100 },
   "Polarization Index": { redMax: 1.0, yellowMax: 0.60, greenMax: 0.40 },
   "AI-Exposed Unemployment": { redMax: 100, yellowMax: 5.0, greenMax: 3.5 },
   "Labor Force Participation": { redMax: 80, yellowMax: 83, greenMax: 100 },
@@ -45,21 +45,21 @@ function buildAnnotations(indicator) {
       type: "box",
       yMin: 0,
       yMax: t.redMax,
-      backgroundColor: "rgba(255,0,0,0.06)",
+      backgroundColor: "rgba(255, 80, 80, 0.20)",
       borderWidth: 0
     },
     yellow: {
       type: "box",
       yMin: t.redMax,
       yMax: t.yellowMax,
-      backgroundColor: "rgba(255,215,0,0.08)",
+      backgroundColor: "rgba(255, 230, 120, 0.20)",
       borderWidth: 0
     },
     green: {
       type: "box",
       yMin: t.yellowMax,
       yMax: t.greenMax,
-      backgroundColor: "rgba(0,255,0,0.06)",
+      backgroundColor: "rgba(120, 255, 120, 0.20)",
       borderWidth: 0
     }
   };
