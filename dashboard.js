@@ -148,7 +148,10 @@ async function loadThresholds() {
   const raw = await res.json();
 
   console.log("THRESHOLDS RAW:", raw);
-
+  if (raw.length > 0) {
+    console.log("THRESHOLDS KEYS SAMPLE:", Object.keys(raw[0]));
+  }
+  
   const map = {};
 
   raw.forEach(r => {
