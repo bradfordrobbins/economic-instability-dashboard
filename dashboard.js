@@ -79,25 +79,25 @@ function buildAnnotations(indicator, t) {
 
   const orient = ORIENTATION[indicator] || "low-worse";
 
-  const g = Number(t.GreenMax);
-  const y = Number(t.YellowMax);
-  const r = Number(t.RedMax);
+  let low = Number(t.RedMax);
+  let mid = Number(t.YellowMax);
+  let high = Number(t.GreenMax);
 
-  console.log("BUILD ANNOTATIONS FOR:", indicator, "orient:", orient, "raw t:", t, "parsed:", { g, y, r });
-
-  let low, mid, high;
-
+  // Normalize so UP = WORSE
   if (orient === "low-worse") {
-    low = r;
-    mid = y;
-    high = g;
-  } else {
-    low = g;
-    mid = y;
-    high = r;
+    // Sheet: low=red, mid=yellow, high=green
+    // Chart: low=green, mid=yellow, high=red
+    const newLow = high;   // green bottom
+    const newMid = mid;    // yellow middle
+    const newHigh = low;   // red top
+    low = newLow;
+    mid = newMid;
+    high = newHigh;
   }
 
-  const annotations = {
+  console.log("NORMALIZED THRESHOLDS FOR:", indicator, { low, mid, high });
+
+  return {
     green: {
       type: "box",
       yMin: 0,
@@ -117,10 +117,8 @@ function buildAnnotations(indicator, t) {
       backgroundColor: "rgba(255,80,80,0.20)"
     }
   };
-
-  console.log("  annotations:", annotations);
-  return annotations;
 }
+
 
 
 // =========================
