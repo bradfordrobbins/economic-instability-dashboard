@@ -2,15 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>AI Political Instability Dashboard</title>
+  <title>AI Instability Dashboard</title>
+
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Chart.js + Annotation plugin -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
+
   <script src="dashboard.js" defer></script>
 </head>
+
 <body>
-  <h1>AI Political Instability Dashboard</h1>
+  <h1>AI Instability Dashboard</h1>
+
   <div class="chart-grid">
+
     <div class="chart-card"><canvas id="chart-Trust"></canvas></div>
     <div class="chart-card"><canvas id="chart-Polarization-Index"></canvas></div>
     <div class="chart-card"><canvas id="chart-AI-Exposed-Unemployment"></canvas></div>
@@ -21,6 +28,7 @@
     <div class="chart-card"><canvas id="chart-Protest-Events"></canvas></div>
     <div class="chart-card"><canvas id="chart-Governance-Stability"></canvas></div>
     <div class="chart-card"><canvas id="chart-Narrative-Temperature"></canvas></div>
+
   </div>
 </body>
 </html>
