@@ -76,7 +76,7 @@ function buildAnnotations(indicator, t) {
     return {};
   }
 
-  const orient = ORIENTATION[indicator] || "low-worse";
+  const orient = ORIENTATION[indicator] || "high-worse";
 
   const g = Number(t.GreenMax);
   const y = Number(t.YellowMax);
@@ -85,7 +85,7 @@ function buildAnnotations(indicator, t) {
   let greenMin, greenMax, yellowMin, yellowMax, redMin, redMax;
 
   if (orient === "high-worse") {
-    // Higher is worse: 0–g green, g–y yellow, y–r red
+    // Higher is worse → red at top
     greenMin = 0;
     greenMax = g;
     yellowMin = g;
@@ -93,8 +93,7 @@ function buildAnnotations(indicator, t) {
     redMin = y;
     redMax = r;
   } else {
-    // Lower is worse: red at bottom, green at top
-    // red: 0–r, yellow: r–y, green: y–g
+    // Lower is worse → red at bottom
     redMin = 0;
     redMax = r;
     yellowMin = r;
@@ -115,22 +114,23 @@ function buildAnnotations(indicator, t) {
       type: "box",
       yMin: greenMin,
       yMax: greenMax,
-      backgroundColor: "rgba(120,255,120,0.20)"
+      backgroundColor: "rgba(0,255,0,0.35)"
     },
     yellow: {
       type: "box",
       yMin: yellowMin,
       yMax: yellowMax,
-      backgroundColor: "rgba(255,230,120,0.20)"
+      backgroundColor: "rgba(255,215,0,0.35)"
     },
     red: {
       type: "box",
       yMin: redMin,
       yMax: redMax,
-      backgroundColor: "rgba(255,80,80,0.20)"
+      backgroundColor: "rgba(255,0,0,0.35)"
     }
   };
 }
+
 
 
 // =========================
