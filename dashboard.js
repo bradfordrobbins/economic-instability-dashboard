@@ -7,25 +7,33 @@ const SHEET_ID = "1qpGEb9FEuhttf0PCVuziBQn9Qvpr33OTsitIaqEdbI0";
 const URL_INDICATORS = `https://opensheet.elk.sh/${SHEET_ID}/Indicators`;
 const URL_THRESHOLDS = `https://opensheet.elk.sh/${SHEET_ID}/Thresholds`;
 
+console.log("DASHBOARD.JS VERSION: 9");
 
 // =========================
 // NORMALIZE INDICATOR NAMES
 // =========================
 
-// Map long names in Thresholds tab → short names in Indicators tab
-const INDICATOR_NAME_MAP = {
-  "Trust": "Trust",
-  "Polarization Index": "Polarization Index",
-  "AI-Exposed Unemployment (%)": "AI-Exposed Unemployment",
-  "Labor Force Participation (Prime Age)": "Labor Force Participation",
-  "Wage Inequality (90/10 Ratio)": "Wage Inequality",
-  "AI Labor Churn Index": "AI Labor Churn Index",
-  "Consumer Sentiment": "Consumer Sentiment",
-  "Protest Events (Monthly)": "Protest Events",
-  "Governance Stability Score": "Governance Stability",
-  "Narrative Temperature Index": "Narrative Temperature"
-};
+function normalizeName(str) {
+  return String(str || "")
+    .toLowerCase()
+    .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
 
+const CANONICAL_NAMES = {
+  "trust": "Trust",
+  "polarization index": "Polarization Index",
+  "ai exposed unemployment": "AI-Exposed Unemployment",
+  "labor force participation prime age": "Labor Force Participation",
+  "wage inequality 90 10 ratio": "Wage Inequality",
+  "ai labor churn index": "AI Labor Churn Index",
+  "consumer sentiment": "Consumer Sentiment",
+  "protest events monthly": "Protest Events",
+  "governance stability score": "Governance Stability",
+  "narrative temperature index": "Narrative Temperature"
+};
 
 // =========================
 // ORIENTATION (UP = WORSE)
@@ -44,7 +52,6 @@ const ORIENTATION = {
   "Protest Events": "high-worse",
   "Narrative Temperature": "high-worse"
 };
-
 
 // =========================
 // HELPERS
@@ -66,11 +73,11 @@ function getCanvasId(indicator) {
   return "chart-" + indicator.replace(/\s+/g, "-");
 }
 
-
 // =========================
 // BUILD ANNOTATIONS
 // =========================
-function buildAnnotations(indicator, t) {
+
+function buildAnnotations(indicator, t, axisMin, axisMax) {
   if (!t) {
     console.warn("No thresholds for", indicator);
     return {};
@@ -85,53 +92,47 @@ function buildAnnotations(indicator, t) {
   let greenMin, greenMax, yellowMin, yellowMax, redMin, redMax;
 
   if (orient === "high-worse") {
-    // Higher is worse → red at top
-    greenMin = 0;
+    greenMin = axisMin;
     greenMax = g;
     yellowMin = g;
     yellowMax = y;
     redMin = y;
-    redMax = r;
+    redMax = axisMax;
   } else {
-    // Lower is worse → red at bottom
-    redMin = 0;
+    redMin = axisMin;
     redMax = r;
     yellowMin = r;
     yellowMax = y;
     greenMin = y;
-    greenMax = g;
+    greenMax = axisMax;
   }
 
-  console.log("BANDS FOR:", indicator, {
-    orient,
-    green: [greenMin, greenMax],
-    yellow: [yellowMin, yellowMax],
-    red: [redMin, redMax]
-  });
+  const clamp = v => Math.min(Math.max(v, axisMin), axisMax);
 
-  return {
+  const bands = {
     green: {
       type: "box",
-      yMin: greenMin,
-      yMax: greenMax,
-      backgroundColor: "rgba(0,255,0,0.35)"
+      yMin: clamp(greenMin),
+      yMax: clamp(greenMax),
+      backgroundColor: "rgba(0,255,0,0.45)"
     },
     yellow: {
       type: "box",
-      yMin: yellowMin,
-      yMax: yellowMax,
-      backgroundColor: "rgba(255,215,0,0.35)"
+      yMin: clamp(yellowMin),
+      yMax: clamp(yellowMax),
+      backgroundColor: "rgba(255,215,0,0.45)"
     },
     red: {
       type: "box",
-      yMin: redMin,
-      yMax: redMax,
-      backgroundColor: "rgba(255,0,0,0.35)"
+      yMin: clamp(redMin),
+      yMax: clamp(redMax),
+      backgroundColor: "rgba(255,0,0,0.45)"
     }
   };
+
+  console.log("BANDS FOR:", indicator, bands);
+  return bands;
 }
-
-
 
 // =========================
 // LOAD DATA
@@ -158,73 +159,38 @@ async function loadThresholds() {
   const raw = await res.json();
 
   console.log("THRESHOLDS RAW:", raw);
-  if (raw.length === 0) {
-    console.warn("No threshold rows returned");
-    return {};
-  }
 
   const sample = raw[0];
   const keys = Object.keys(sample);
   console.log("THRESHOLDS KEYS SAMPLE:", keys);
 
-  const greenKey  = keys.find(k => k.toLowerCase().includes("green"));
+  const greenKey = keys.find(k => k.toLowerCase().includes("green"));
   const yellowKey = keys.find(k => k.toLowerCase().includes("yellow"));
-  const redKey    = keys.find(k => k.toLowerCase().includes("red"));
+  const redKey = keys.find(k => k.toLowerCase().includes("red"));
 
   console.log("DETECTED THRESHOLD COLUMNS:", { greenKey, yellowKey, redKey });
 
   const map = {};
 
   raw.forEach(r => {
-    const rawName = String(r.Indicator || "");
-    const norm = normalizeName(rawName);
+    const norm = normalizeName(r.Indicator);
     const canonical = CANONICAL_NAMES[norm];
 
     if (!canonical) {
-      console.warn("No canonical name for thresholds row:", rawName, "normalized as:", norm, r);
+      console.warn("No canonical name for:", r.Indicator, "normalized:", norm);
       return;
     }
 
-    const g  = Number(String(r[greenKey]).trim());
-    const y  = Number(String(r[yellowKey]).trim());
-    const rd = Number(String(r[redKey]).trim());
-
     map[canonical] = {
-      GreenMax: g,
-      YellowMax: y,
-      RedMax: rd
+      GreenMax: Number(r[greenKey]),
+      YellowMax: Number(r[yellowKey]),
+      RedMax: Number(r[redKey])
     };
   });
 
   console.log("THRESHOLDS MAP:", map);
-  window.LAST_THRESHOLDS = map;
   return map;
 }
-
-
-// Turn "AI‑Exposed Unemployment (%)" and "AI-Exposed Unemployment" into the same key
-function normalizeName(str) {
-  return String(str || "")
-    .toLowerCase()
-    .replace(/[\u2010-\u2015]/g, "-")   // normalize all hyphen-like chars to "-"
-    .replace(/[^a-z0-9]+/g, " ")       // remove punctuation, keep letters/numbers as words
-    .trim()
-    .replace(/\s+/g, " ");             // collapse spaces
-}
-
-// Canonical indicator names (what you use in the Indicators tab)
-const CANONICAL_NAMES = {
-  "trust": "Trust",
-  "polarization index": "Polarization Index",
-  "ai exposed unemployment": "AI-Exposed Unemployment",
-  "labor force participation prime age": "Labor Force Participation",
-  "wage inequality 90 10 ratio": "Wage Inequality",
-  "ai labor churn index": "AI Labor Churn Index",
-  "consumer sentiment": "Consumer Sentiment",
-  "protest events monthly": "Protest Events",
-  "governance stability score": "Governance Stability",
-  "narrative temperature index": "Narrative Temperature"
-};
 
 // =========================
 // RENDER CHARTS
@@ -237,19 +203,15 @@ function renderCharts(grouped, thresholds) {
     const values = rows.map(r => r.Value);
 
     const canvas = document.getElementById(getCanvasId(indicator));
-    if (!canvas) {
-      console.warn("No canvas for indicator:", indicator, "expected id:", getCanvasId(indicator));
-      return;
-    }
+    if (!canvas) return;
+
+    const axisMin = Math.min(...values) * 0.95;
+    const axisMax = Math.max(...values) * 1.05;
 
     const threshold = thresholds[indicator];
-    const annotations = buildAnnotations(indicator, threshold);
+    const annotations = buildAnnotations(indicator, threshold, axisMin, axisMax);
 
-    console.log("RENDERING:", indicator);
-    console.log("  values:", values);
-    console.log("  thresholds:", threshold);
-    console.log("  orientation:", ORIENTATION[indicator]);
-    console.log("  annotations:", annotations);
+    console.log("RENDERING:", indicator, { axisMin, axisMax });
 
     new Chart(canvas.getContext("2d"), {
       type: "line",
@@ -259,9 +221,11 @@ function renderCharts(grouped, thresholds) {
           label: indicator,
           data: values,
           borderColor: "#4da6ff",
-          backgroundColor: "rgba(77,166,255,0.2)",
-          tension: 0.2,
-          pointRadius: 3
+          backgroundColor: "rgba(77,166,255,0.3)",
+          borderWidth: 3,
+          tension: 0.25,
+          pointRadius: 4,
+          pointBackgroundColor: "#fff"
         }]
       },
       options: {
@@ -273,14 +237,25 @@ function renderCharts(grouped, thresholds) {
           title: {
             display: true,
             text: indicator,
-            font: { size: 14 }
+            color: "#fff",
+            font: { size: 16, weight: "bold" }
+          }
+        },
+        scales: {
+          y: {
+            min: axisMin,
+            max: axisMax,
+            grid: { color: "rgba(255,255,255,0.15)" },
+            ticks: { color: "#fff" }
+          },
+          x: {
+            ticks: { color: "#fff" }
           }
         }
       }
     });
   });
 }
-
 
 // =========================
 // INIT
