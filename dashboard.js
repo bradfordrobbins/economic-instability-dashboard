@@ -35,8 +35,21 @@ const CANONICAL_NAMES = {
   "narrative temperature index": "Narrative Temperature"
 };
 
+const UPDATE_CADENCE = {
+  "Trust": "Annual",
+  "Polarization Index": "Annual",
+  "AI-Exposed Unemployment": "Monthly",
+  "Labor Force Participation": "Monthly",
+  "Wage Inequality": "Annual",
+  "AI Labor Churn Index": "Synthetic Monthly",
+  "Consumer Sentiment": "Monthly",
+  "Protest Events": "Weekly → Monthly Aggregated",
+  "Governance Stability": "Annual",
+  "Narrative Temperature": "Weekly → Monthly Aggregated"
+};
+
 // =========================
-// ORIENTATION (UP = WORSE)
+// ORIENTATION
 // =========================
 
 const ORIENTATION = {
@@ -236,7 +249,7 @@ function renderCharts(grouped, thresholds) {
           legend: { display: false },
           title: {
             display: true,
-            text: indicator,
+            text: `${indicator} (${UPDATE_CADENCE[indicator]})`,
             color: "#fff",
             font: { size: 16, weight: "bold" }
           }
