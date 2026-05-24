@@ -7,7 +7,7 @@ const SHEET_ID = "1qpGEb9FEuhttf0PCVuziBQn9Qvpr33OTsitIaqEdbI0";
 const URL_INDICATORS = `https://opensheet.elk.sh/${SHEET_ID}/Indicators`;
 const URL_THRESHOLDS = `https://opensheet.elk.sh/${SHEET_ID}/Thresholds`;
 
-console.log("DASHBOARD.JS VERSION: 11");
+console.log("DASHBOARD.JS VERSION: 12");
 
 // =========================
 // HELPERS
@@ -43,7 +43,11 @@ function getCanvasId(indicator) {
 function buildAnnotations(indicator, t, axisMin, axisMax) {
   if (!t) return {};
 
-  const orient = t.Orientation || "high-worse";
+  // ⭐ Infer orientation automatically
+  const orient =
+    Number(t.RedMax) > Number(t.GreenMax)
+      ? "high-worse"
+      : "low-worse";
 
   const g = Number(t.GreenMax);
   const y = Number(t.YellowMax);
@@ -116,17 +120,13 @@ async function loadThresholds() {
   const greenKey = keys.find(k => k.toLowerCase().includes("green"));
   const yellowKey = keys.find(k => k.toLowerCase().includes("yellow"));
   const redKey = keys.find(k => k.toLowerCase().includes("red"));
-  const orientKey = keys.find(k => k.toLowerCase().includes("orient"));
-  const cadenceKey = keys.find(k => k.toLowerCase().includes("cadence"));
 
   const map = {};
   raw.forEach(r => {
     map[r.Indicator] = {
       GreenMax: Number(r[greenKey]),
       YellowMax: Number(r[yellowKey]),
-      RedMax: Number(r[redKey]),
-      Orientation: r[orientKey] || "high-worse",
-      Cadence: r[cadenceKey] || ""
+      RedMax: Number(r[redKey])
     };
   });
 
@@ -152,10 +152,6 @@ function renderCharts(grouped, order, thresholds) {
     const t = thresholds[indicator];
     const annotations = buildAnnotations(indicator, t, axisMin, axisMax);
 
-    const titleText = t.Cadence
-      ? `${indicator} (${t.Cadence})`
-      : indicator;
-
     new Chart(canvas.getContext("2d"), {
       type: "line",
       data: {
@@ -179,7 +175,7 @@ function renderCharts(grouped, order, thresholds) {
           legend: { display: false },
           title: {
             display: true,
-            text: titleText,
+            text: indicator,
             color: "#fff",
             font: { size: 16, weight: "bold" }
           }
