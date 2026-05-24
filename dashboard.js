@@ -71,20 +71,24 @@ const ORIENTATION = {
 // =========================
 
 function groupByIndicator(rows) {
+  const order = [];
   const map = {};
+
   rows.forEach(r => {
-    if (!map[r.Indicator]) map[r.Indicator] = [];
+    if (!map[r.Indicator]) {
+      map[r.Indicator] = [];
+      order.push(r.Indicator);   // preserve first-seen order
+    }
     map[r.Indicator].push(r);
   });
-  Object.keys(map).forEach(k => {
-    map[k].sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+  order.forEach(ind => {
+    map[ind].sort((a, b) => new Date(a.Date) - new Date(b.Date));
   });
-  return map;
+
+  return { map, order };
 }
 
-function getCanvasId(indicator) {
-  return "chart-" + indicator.replace(/\s+/g, "-");
-}
 
 // =========================
 // BUILD ANNOTATIONS
@@ -209,8 +213,8 @@ async function loadThresholds() {
 // RENDER CHARTS
 // =========================
 
-function renderCharts(grouped, thresholds) {
-  Object.keys(grouped).forEach(indicator => {
+function renderCharts(grouped, order, thresholds) {
+  order.forEach(indicator => {
     const rows = grouped[indicator];
     const labels = rows.map(r => r.Date);
     const values = rows.map(r => r.Value);
@@ -280,10 +284,8 @@ async function init() {
     loadThresholds()
   ]);
 
-  const grouped = groupByIndicator(indicatorData);
-  console.log("GROUPED INDICATORS:", grouped);
-
-  renderCharts(grouped, thresholdData);
+  const { map, order } = groupByIndicator(indicatorData);
+  renderCharts(map, order, thresholdData);
 }
 
 document.addEventListener("DOMContentLoaded", init);
