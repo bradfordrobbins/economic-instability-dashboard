@@ -7,49 +7,10 @@ const SHEET_ID = "1qpGEb9FEuhttf0PCVuziBQn9Qvpr33OTsitIaqEdbI0";
 const URL_INDICATORS = `https://opensheet.elk.sh/${SHEET_ID}/Indicators`;
 const URL_THRESHOLDS = `https://opensheet.elk.sh/${SHEET_ID}/Thresholds`;
 
-console.log("DASHBOARD.JS VERSION: 9");
+console.log("DASHBOARD.JS VERSION: 10");
 
 // =========================
-// NORMALIZE INDICATOR NAMES
-// =========================
-
-function normalizeName(str) {
-  return String(str || "")
-    .toLowerCase()
-    .replace(/[\u2010-\u2015]/g, "-")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .replace(/\s+/g, " ");
-}
-
-const CANONICAL_NAMES = {
-  "trust": "Trust",
-  "polarization index": "Polarization Index",
-  "ai exposed unemployment": "AI-Exposed Unemployment",
-  "labor force participation prime age": "Labor Force Participation",
-  "wage inequality 90 10 ratio": "Wage Inequality",
-  "ai labor churn index": "AI Labor Churn Index",
-  "consumer sentiment": "Consumer Sentiment",
-  "protest events monthly": "Protest Events",
-  "governance stability score": "Governance Stability",
-  "narrative temperature index": "Narrative Temperature"
-};
-
-const UPDATE_CADENCE = {
-  "Trust": "Annual",
-  "Polarization Index": "Annual",
-  "AI-Exposed Unemployment": "Monthly",
-  "Labor Force Participation": "Monthly",
-  "Wage Inequality": "Annual",
-  "AI Labor Churn Index": "Synthetic Monthly",
-  "Consumer Sentiment": "Monthly",
-  "Protest Events": "Weekly → Monthly Aggregated",
-  "Governance Stability": "Annual",
-  "Narrative Temperature": "Weekly → Monthly Aggregated"
-};
-
-// =========================
-// ORIENTATION
+// ORIENTATION (kept simple)
 // =========================
 
 const ORIENTATION = {
@@ -63,7 +24,31 @@ const ORIENTATION = {
   "Wage Inequality": "high-worse",
   "AI Labor Churn Index": "high-worse",
   "Protest Events": "high-worse",
-  "Narrative Temperature": "high-worse"
+  "Narrative Temperature": "high-worse",
+
+  "Sahm Rule (Official)": "high-worse",
+  "Sahm Rule (Realtime)": "high-worse",
+  "S&P 500": "low-worse"
+};
+
+// =========================
+// UPDATE CADENCE (optional)
+// =========================
+
+const UPDATE_CADENCE = {
+  "Trust": "Annual",
+  "Polarization Index": "Annual",
+  "AI-Exposed Unemployment": "Monthly",
+  "Labor Force Participation": "Monthly",
+  "Wage Inequality": "Annual",
+  "AI Labor Churn Index": "Synthetic Monthly",
+  "Consumer Sentiment": "Monthly",
+  "Protest Events": "Weekly → Monthly Aggregated",
+  "Governance Stability": "Annual",
+  "Narrative Temperature": "Weekly → Monthly Aggregated",
+  "Sahm Rule (Official)": "Monthly",
+  "Sahm Rule (Realtime)": "Monthly",
+  "S&P 500": "Daily"
 };
 
 // =========================
@@ -77,7 +62,7 @@ function groupByIndicator(rows) {
   rows.forEach(r => {
     if (!map[r.Indicator]) {
       map[r.Indicator] = [];
-      order.push(r.Indicator);   // preserve first-seen order
+      order.push(r.Indicator);   // preserve sheet order
     }
     map[r.Indicator].push(r);
   });
@@ -89,16 +74,16 @@ function groupByIndicator(rows) {
   return { map, order };
 }
 
+function getCanvasId(indicator) {
+  return "chart-" + indicator.replace(/\s+/g, "-");
+}
 
 // =========================
-// BUILD ANNOTATIONS
+// ANNOTATIONS
 // =========================
 
 function buildAnnotations(indicator, t, axisMin, axisMax) {
-  if (!t) {
-    console.warn("No thresholds for", indicator);
-    return {};
-  }
+  if (!t) return {};
 
   const orient = ORIENTATION[indicator] || "high-worse";
 
@@ -126,7 +111,7 @@ function buildAnnotations(indicator, t, axisMin, axisMax) {
 
   const clamp = v => Math.min(Math.max(v, axisMin), axisMax);
 
-  const bands = {
+  return {
     green: {
       type: "box",
       yMin: clamp(greenMin),
@@ -146,9 +131,6 @@ function buildAnnotations(indicator, t, axisMin, axisMax) {
       backgroundColor: "rgba(255,0,0,0.45)"
     }
   };
-
-  console.log("BANDS FOR:", indicator, bands);
-  return bands;
 }
 
 // =========================
@@ -159,53 +141,33 @@ async function loadIndicators() {
   const res = await fetch(URL_INDICATORS);
   const raw = await res.json();
 
-  console.log("INDICATORS RAW:", raw);
-
-  const parsed = raw.map(r => ({
+  return raw.map(r => ({
     Date: r.Date,
     Indicator: String(r.Indicator || "").trim(),
     Value: Number(r.Value)
   }));
-
-  console.log("INDICATORS PARSED:", parsed);
-  return parsed;
 }
 
 async function loadThresholds() {
   const res = await fetch(URL_THRESHOLDS);
   const raw = await res.json();
 
-  console.log("THRESHOLDS RAW:", raw);
-
   const sample = raw[0];
   const keys = Object.keys(sample);
-  console.log("THRESHOLDS KEYS SAMPLE:", keys);
 
   const greenKey = keys.find(k => k.toLowerCase().includes("green"));
   const yellowKey = keys.find(k => k.toLowerCase().includes("yellow"));
   const redKey = keys.find(k => k.toLowerCase().includes("red"));
 
-  console.log("DETECTED THRESHOLD COLUMNS:", { greenKey, yellowKey, redKey });
-
   const map = {};
-
   raw.forEach(r => {
-    const norm = normalizeName(r.Indicator);
-    const canonical = CANONICAL_NAMES[norm];
-
-    if (!canonical) {
-      console.warn("No canonical name for:", r.Indicator, "normalized:", norm);
-      return;
-    }
-
-    map[canonical] = {
+    map[r.Indicator] = {
       GreenMax: Number(r[greenKey]),
       YellowMax: Number(r[yellowKey]),
       RedMax: Number(r[redKey])
     };
   });
 
-  console.log("THRESHOLDS MAP:", map);
   return map;
 }
 
@@ -227,8 +189,6 @@ function renderCharts(grouped, order, thresholds) {
 
     const threshold = thresholds[indicator];
     const annotations = buildAnnotations(indicator, threshold, axisMin, axisMax);
-
-    console.log("RENDERING:", indicator, { axisMin, axisMax });
 
     new Chart(canvas.getContext("2d"), {
       type: "line",
@@ -253,7 +213,7 @@ function renderCharts(grouped, order, thresholds) {
           legend: { display: false },
           title: {
             display: true,
-            text: `${indicator} (${UPDATE_CADENCE[indicator]})`,
+            text: `${indicator} (${UPDATE_CADENCE[indicator] || ""})`,
             color: "#fff",
             font: { size: 16, weight: "bold" }
           }
