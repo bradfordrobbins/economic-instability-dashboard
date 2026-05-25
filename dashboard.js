@@ -162,20 +162,24 @@ function renderCharts(grouped, order, thresholds) {
     const t = thresholds[indicator];
 
     // ⭐ Correct axis bounds: include BOTH thresholds AND data
-    const axisMin = Math.min(
+    const rawMin = Math.min(
       ...values,
       Number(t.GreenMax),
       Number(t.YellowMax),
       Number(t.RedMax)
     );
-
-    const axisMax = Math.max(
+    
+    const rawMax = Math.max(
       ...values,
       Number(t.GreenMax),
       Number(t.YellowMax),
       Number(t.RedMax)
     );
-
+    
+    // Apply padding
+    const axisMin = rawMin * 0.95;
+    const axisMax = rawMax * 1.05;
+    
     const annotations = buildAnnotations(indicator, t, axisMin, axisMax);
 
     new Chart(canvas.getContext("2d"), {
