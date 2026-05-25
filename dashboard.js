@@ -149,7 +149,7 @@ async function loadThresholds() {
 // RENDER CHARTS
 // =========================
 function renderCharts(grouped, order, thresholds) {
-  console.log("RENDER CHARTS CALLED", order);
+  //console.log("RENDER CHARTS CALLED", order);
 
   order.forEach(indicator => {
     const rows = grouped[indicator];
