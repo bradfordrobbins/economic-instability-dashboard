@@ -150,7 +150,7 @@ async function loadThresholds() {
 // =========================
 
 function renderCharts(grouped, order, thresholds) {
-  console.log("RENDER CHARTS CALLED", indicatorOrder);
+  console.log("RENDER CHARTS CALLED", order);
   order.forEach(indicator => {
     const rows = grouped[indicator];
     const labels = rows.map(r => r.Date);
