@@ -12,6 +12,18 @@ console.log("DASHBOARD.JS VERSION: 12");
 // =========================
 // HELPERS
 // =========================
+// Dynamically create the number of charts
+function createCanvasForIndicator(indicator) {
+  const container = document.getElementById("chart-container");
+  const card = document.createElement("div");
+  card.className = "chart-card";
+
+  const canvas = document.createElement("canvas");
+  canvas.id = getCanvasId(indicator);
+
+  card.appendChild(canvas);
+  container.appendChild(card);
+}
 
 function groupByIndicator(rows) {
   const order = [];
@@ -206,8 +218,12 @@ async function init() {
     loadThresholds()
   ]);
 
-  const { map, order } = groupByIndicator(indicatorData);
-  renderCharts(map, order, thresholdData);
+const { map, order } = groupByIndicator(indicatorData);
+
+// Dynamically create canvases for each indicator
+order.forEach(indicator => createCanvasForIndicator(indicator));
+renderCharts(map, order, thresholdData);
+  
 }
 
 document.addEventListener("DOMContentLoaded", init);
