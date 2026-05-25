@@ -148,9 +148,9 @@ async function loadThresholds() {
 // =========================
 // RENDER CHARTS
 // =========================
-
 function renderCharts(grouped, order, thresholds) {
   console.log("RENDER CHARTS CALLED", order);
+
   order.forEach(indicator => {
     const rows = grouped[indicator];
     const labels = rows.map(r => r.Date);
@@ -161,9 +161,21 @@ function renderCharts(grouped, order, thresholds) {
 
     const t = thresholds[indicator];
 
-    // Determine correct axis bounds regardless of orientation
-    const axisMin = Math.min(t.GreenMax, t.YellowMax, t.RedMax);
-    const axisMax = Math.max(t.GreenMax, t.YellowMax, t.RedMax);
+    // ⭐ Correct axis bounds: include BOTH thresholds AND data
+    const axisMin = Math.min(
+      ...values,
+      Number(t.GreenMax),
+      Number(t.YellowMax),
+      Number(t.RedMax)
+    );
+
+    const axisMax = Math.max(
+      ...values,
+      Number(t.GreenMax),
+      Number(t.YellowMax),
+      Number(t.RedMax)
+    );
+
     const annotations = buildAnnotations(indicator, t, axisMin, axisMax);
 
     new Chart(canvas.getContext("2d"), {
@@ -209,6 +221,7 @@ function renderCharts(grouped, order, thresholds) {
     });
   });
 }
+
 
 // =========================
 // INIT
