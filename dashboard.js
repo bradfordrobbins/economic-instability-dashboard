@@ -159,10 +159,11 @@ function renderCharts(grouped, order, thresholds) {
     const canvas = document.getElementById(getCanvasId(indicator));
     if (!canvas) return;
 
-    const axisMin = Math.min(...values) * 0.95;
-    const axisMax = Math.max(...values) * 1.05;
-
     const t = thresholds[indicator];
+
+    // Determine correct axis bounds regardless of orientation
+    const axisMin = Math.min(t.GreenMax, t.YellowMax, t.RedMax);
+    const axisMax = Math.max(t.GreenMax, t.YellowMax, t.RedMax);
     const annotations = buildAnnotations(indicator, t, axisMin, axisMax);
 
     new Chart(canvas.getContext("2d"), {
